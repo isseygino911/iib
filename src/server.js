@@ -5,8 +5,9 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 import { testConnection } from './config/db.js';
-import authRouter from './routes/authRoutes.js';
-import userRouter from './routes/userRoutes.js';
+import authRouter      from './routes/authRoutes.js';
+import userRouter      from './routes/userRoutes.js';
+import dashboardRouter from './routes/dashboardRoutes.js';
 import { PROJECTS } from './data/projects.js';
 import { apiLimiter, errorHandler, notFoundHandler } from './middleware/index.js';
 import { isValidEmail } from './utils/auth.js';
@@ -29,8 +30,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // ── Routes ───────────────────────────────────────────────────
-app.use('/api/auth',  authRouter);
-app.use('/api/users', apiLimiter, userRouter);
+app.use('/api/auth',      authRouter);
+app.use('/api/users',     apiLimiter, userRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 /**
  * GET /api/projects
