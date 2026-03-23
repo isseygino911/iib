@@ -35,8 +35,8 @@ export const REFRESH_COOKIE_OPTS = {
 
 // ── Token helpers ────────────────────────────────────────────
 
-export function generateTokenPair(id, email) {
-  const payload = { id, email };
+export function generateTokenPair(id, email, role = 'user') {
+  const payload = { id, email, role };
   return {
     accessToken:  signAccessToken(payload),
     refreshToken: signRefreshToken(payload),

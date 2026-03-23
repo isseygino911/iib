@@ -9,7 +9,7 @@ import {
 // ── Controllers ──────────────────────────────────────────────
 
 export const register = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { name, email, password } = req.body;
 
   if (!email || !password)
     return res.status(400).json({ message: 'Email and password are required' });
@@ -17,24 +17,27 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   if (!isValidEmail(email))
     return res.status(400).json({ message: 'Invalid email address' });
+  if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 100))
+    return res.status(400).json({ message: 'Name must be between 1 and 100 characters' });
 
   const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
   if (existing.length > 0)
     return res.status(409).json({ message: 'Email already registered' });
 
   const passwordHash = await hashPassword(password);
+  const cleanName    = name ? name.trim() : null;
   const [result] = await pool.query(
-    'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-    [email, passwordHash]
+    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+    [cleanName, email, passwordHash]
   );
 
   const userId = result.insertId;
-  const { accessToken, refreshToken } = generateTokenPair(userId, email);
+  const { accessToken, refreshToken } = generateTokenPair(userId, email, 'user');
 
   await pool.query('UPDATE users SET refresh_token = ? WHERE id = ?', [refreshToken, userId]);
   setCookieTokens(res, accessToken, refreshToken);
 
-  return res.status(201).json({ message: 'Account created successfully', user: { id: userId, email } });
+  return res.status(201).json({ message: 'Account created successfully', user: { id: userId, email, role: 'user' } });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -44,7 +47,7 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
 
   const [rows] = await pool.query(
-    'SELECT id, email, password_hash FROM users WHERE email = ?',
+    'SELECT id, email, password_hash, role FROM users WHERE email = ?',
     [email]
   );
 
@@ -52,12 +55,12 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' });
 
   const user = rows[0];
-  const { accessToken, refreshToken } = generateTokenPair(user.id, user.email);
+  const { accessToken, refreshToken } = generateTokenPair(user.id, user.email, user.role);
 
   await pool.query('UPDATE users SET refresh_token = ? WHERE id = ?', [refreshToken, user.id]);
   setCookieTokens(res, accessToken, refreshToken);
 
-  return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email } });
+  return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, role: user.role } });
 });
 
 export const logout = asyncHandler(async (req, res) => {
@@ -74,7 +77,7 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const getMe = asyncHandler(async (req, res) => {
   const [rows] = await pool.query(
-    'SELECT id, email, created_at FROM users WHERE id = ?',
+    'SELECT id, name, email, role, created_at FROM users WHERE id = ?',
     [req.user.id]
   );
 
@@ -97,7 +100,7 @@ export const refresh = asyncHandler(async (req, res) => {
   }
 
   const [rows] = await pool.query(
-    'SELECT id, email FROM users WHERE id = ? AND refresh_token = ?',
+    'SELECT id, email, role FROM users WHERE id = ? AND refresh_token = ?',
     [decoded.id, token]
   );
 
@@ -105,7 +108,7 @@ export const refresh = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: 'Refresh token revoked' });
 
   const user = rows[0];
-  const { accessToken, refreshToken: newRefreshToken } = generateTokenPair(user.id, user.email);
+  const { accessToken, refreshToken: newRefreshToken } = generateTokenPair(user.id, user.email, user.role);
 
   await pool.query('UPDATE users SET refresh_token = ? WHERE id = ?', [newRefreshToken, user.id]);
   setCookieTokens(res, accessToken, newRefreshToken);

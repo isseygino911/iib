@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 
 import { testConnection } from './config/db.js';
 import authRouter from './routes/authRoutes.js';
+import userRouter from './routes/userRoutes.js';
 import { PROJECTS } from './data/projects.js';
 import { apiLimiter, errorHandler, notFoundHandler } from './middleware/index.js';
 import { isValidEmail } from './utils/auth.js';
@@ -27,17 +28,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ── Rate limiting ────────────────────────────────────────────
-app.use('/api', apiLimiter);
-
 // ── Routes ───────────────────────────────────────────────────
-app.use('/api/auth', authRouter);
+app.use('/api/auth',  authRouter);
+app.use('/api/users', apiLimiter, userRouter);
 
 /**
  * GET /api/projects
  * Returns the full list of portfolio projects.
  */
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', apiLimiter, (req, res) => {
   res.json(PROJECTS);
 });
 
@@ -45,7 +44,7 @@ app.get('/api/projects', (req, res) => {
  * GET /api/projects/:key
  * Returns a single project by its unique key.
  */
-app.get('/api/projects/:key', (req, res) => {
+app.get('/api/projects/:key', apiLimiter, (req, res) => {
   const project = PROJECTS.find(p => p.key === req.params.key);
   if (!project) {
     return res.status(404).json({ message: 'Project not found' });
@@ -58,7 +57,7 @@ app.get('/api/projects/:key', (req, res) => {
  * Accepts a commission enquiry form submission.
  * Returns 200 ok — email delivery would be wired here in production.
  */
-app.post('/api/contact', (req, res) => {
+app.post('/api/contact', apiLimiter, (req, res) => {
   const { name, email, projectType, brief } = req.body;
 
   if (!name || !email || !brief)
