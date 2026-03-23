@@ -1,0 +1,27 @@
+-- =========================================================
+-- II Design — Database Initialisation
+-- Run once: mysql -u root -p < init.sql
+-- =========================================================
+
+CREATE DATABASE IF NOT EXISTS ii_design
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE ii_design;
+
+-- Users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+  id            INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(255)     NOT NULL UNIQUE,
+  password_hash VARCHAR(255)     NOT NULL,
+  refresh_token TEXT             DEFAULT NULL,
+  created_at    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seed: insert a demo user (password: demo1234)
+-- bcrypt hash of "demo1234" with 12 rounds:
+-- INSERT INTO users (email, password_hash) VALUES
+--   ('demo@iidesign.com', '$2a$12$examplehashgoeshere...');
