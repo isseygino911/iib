@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { hashPassword, comparePassword, asyncHandler, isValidEmail } from '../utils/auth.js';
+import { hashPassword, comparePassword, asyncHandler, isValidEmail, ACCESS_COOKIE_OPTS, REFRESH_COOKIE_OPTS } from '../utils/auth.js';
 import { PROJECTS } from '../data/projects.js';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -184,10 +184,11 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!currentPassword || !newPassword)
     return res.status(400).json({ message: 'currentPassword and newPassword are required' });
 
-  if (typeof newPassword !== 'string' || newPassword.length < 8)
+  const trimmedNew = typeof newPassword === 'string' ? newPassword.trim() : '';
+  if (trimmedNew.length < 8)
     return res.status(400).json({ message: 'New password must be at least 8 characters' });
 
-  if (currentPassword === newPassword)
+  if (currentPassword === trimmedNew)
     return res.status(400).json({ message: 'New password must differ from the current password' });
 
   // Fetch current hash
@@ -203,7 +204,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!isMatch)
     return res.status(401).json({ message: 'Current password is incorrect' });
 
-  const newHash = await hashPassword(newPassword);
+  const newHash = await hashPassword(trimmedNew);
 
   await pool.query(
     'UPDATE users SET password_hash = ?, refresh_token = NULL WHERE id = ?',
@@ -211,8 +212,8 @@ export const changePassword = asyncHandler(async (req, res) => {
   );
 
   // Clear tokens from cookies so the client must log in again with the new password
-  res.clearCookie('accessToken',  { httpOnly: true, sameSite: 'strict' });
-  res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict' });
+  res.clearCookie('accessToken',  ACCESS_COOKIE_OPTS);
+  res.clearCookie('refreshToken', REFRESH_COOKIE_OPTS);
 
   return res.status(200).json({ message: 'Password changed successfully. Please log in again.' });
 });

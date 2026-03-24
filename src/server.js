@@ -14,6 +14,11 @@ import { isValidEmail } from './utils/auth.js';
 
 dotenv.config();
 
+if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
+  console.error('[server] FATAL: CORS_ORIGIN env var must be set in production');
+  process.exit(1);
+}
+
 const app  = express();
 const PORT = process.env.PORT || 5002;
 
