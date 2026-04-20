@@ -22,6 +22,8 @@ if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
 const app  = express();
 const PORT = process.env.PORT || 5003;
 
+app.set('trust proxy', 1);
+
 // ── Security middleware ──────────────────────────────────────
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
