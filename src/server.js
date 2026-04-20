@@ -14,20 +14,17 @@ import { isValidEmail } from './utils/auth.js';
 
 dotenv.config();
 
-if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
-  console.error('[server] FATAL: CORS_ORIGIN env var must be set in production');
-  process.exit(1);
-}
-
 const app  = express();
 const PORT = process.env.PORT || 5003;
 
 app.set('trust proxy', 1);
 
 // ── Security middleware ──────────────────────────────────────
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-  .split(',')
-  .map((o) => o.trim());
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'https://iidesign.cloud',
+  'https://api.iidesign.cloud',
+];
 
 app.use(helmet());
 app.use(cors({
