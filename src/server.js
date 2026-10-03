@@ -11,6 +11,7 @@ import dashboardRouter from './routes/dashboardRoutes.js';
 import { PROJECTS } from './data/projects.js';
 import { apiLimiter, errorHandler, notFoundHandler } from './middleware/index.js';
 import { isValidEmail } from './utils/auth.js';
+import { send } from './utils/mailer.js';
 
 dotenv.config();
 
@@ -70,10 +71,9 @@ app.get('/api/projects/:key', apiLimiter, (req, res) => {
 
 /**
  * POST /api/contact
- * Accepts a commission enquiry form submission.
- * Returns 200 ok — email delivery would be wired here in production.
+ * Accepts a commission enquiry form submission and emails it to CONTACT_NOTIFY_EMAIL.
  */
-app.post('/api/contact', apiLimiter, (req, res) => {
+app.post('/api/contact', apiLimiter, async (req, res) => {
   const { name, email, projectType, brief } = req.body;
 
   if (!name || !email || !brief)
@@ -97,7 +97,20 @@ app.post('/api/contact', apiLimiter, (req, res) => {
     return res.status(400).json({ message: 'Brief must be 2000 characters or fewer.' });
   }
 
-  console.log('[contact] New enquiry from:', email, '— name:', name, '— type:', projectType);
+  // The email is the only record of the enquiry, so a failed send fails the request
+  // and the visitor can retry rather than believing it was delivered.
+  try {
+    await send({
+      to:      process.env.CONTACT_NOTIFY_EMAIL,
+      replyTo: email,
+      subject: `New enquiry — ${name.replace(/[\r\n]+/g, ' ')}`,
+      text:    `Name: ${name}\nEmail: ${email}\nProject type: ${projectType || '—'}\n\n${brief}`,
+    });
+  } catch (err) {
+    console.error('[contact] Email send failed:', err.message);
+    return res.status(502).json({ message: 'Your enquiry could not be sent. Please try again shortly.' });
+  }
+
   res.json({ ok: true, message: 'Enquiry received. We will be in touch.' });
 });
 
