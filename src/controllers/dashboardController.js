@@ -75,15 +75,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
     return acc;
   }, {});
 
-  const projectYears = [...new Set(PROJECTS.map(p => p.year))].sort((a, b) => b - a);
-
   const portfolioStats = {
     totalProjects:  PROJECTS.length,
     projectsByType: projectTypes,
-    yearsActive:    projectYears,
-    latestProject:  PROJECTS
-      .slice()
-      .sort((a, b) => b.year - a.year)[0]?.title ?? null,
   };
 
   // ── Response ─────────────────────────────────────────────────
