@@ -35,6 +35,17 @@ export const authLimiter = rateLimit({
   message: { message: 'Too many requests from this IP, please try again after 15 minutes.' },
 });
 
+// Refresh fires on every page load, so it needs a looser budget than
+// authLimiter — but it is still unauthenticated and rotates tokens, so it
+// cannot be left unlimited.
+export const refreshLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,
+  max:             60,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { message: 'Too many token refresh attempts, please try again later.' },
+});
+
 export const apiLimiter = rateLimit({
   windowMs:        60 * 1000,
   max:             100,
@@ -47,14 +58,17 @@ export const apiLimiter = rateLimit({
 
 export function errorHandler(err, req, res, next) {
   const status  = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
 
-  if (process.env.NODE_ENV !== 'production') console.error('[error]', err);
+  // Always log the full error server-side; never send internals to the client.
+  console.error('[error]', err);
 
-  res.status(status).json({
-    message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
-  });
+  // 5xx messages can carry internal detail (driver errors, file paths), so they
+  // are replaced with a generic string. 4xx messages are ours and safe to send.
+  const message = status >= 500
+    ? 'Internal Server Error'
+    : (err.message || 'Request failed');
+
+  res.status(status).json({ message });
 }
 
 export function notFoundHandler(req, res) {

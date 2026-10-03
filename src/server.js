@@ -37,8 +37,10 @@ app.use(cors({
 }));
 
 // ── Body / cookie parsing ────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Bodies are capped well below the Express default (100kb). The largest
+// legitimate payload is a contact brief, which is limited to 2000 chars.
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // ── Routes ───────────────────────────────────────────────────
@@ -77,8 +79,19 @@ app.post('/api/contact', apiLimiter, (req, res) => {
   if (!name || !email || !brief)
     return res.status(400).json({ message: 'Name, email, and project brief are required.' });
 
+  // Type-check before any length check: on a non-string, `.length` is either
+  // undefined (silently skipping the cap) or the wrong thing entirely.
+  if (typeof name !== 'string' || typeof email !== 'string' || typeof brief !== 'string')
+    return res.status(400).json({ message: 'Name, email, and project brief must be text.' });
+
+  if (projectType !== undefined && typeof projectType !== 'string')
+    return res.status(400).json({ message: 'Project type must be text.' });
+
   if (!isValidEmail(email))
     return res.status(400).json({ message: 'Invalid email address.' });
+
+  if (name.length > 100)
+    return res.status(400).json({ message: 'Name must be 100 characters or fewer.' });
 
   if (brief.length > 2000) {
     return res.status(400).json({ message: 'Brief must be 2000 characters or fewer.' });

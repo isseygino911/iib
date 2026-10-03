@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { hashPassword, asyncHandler, isValidEmail } from '../utils/auth.js';
+import { hashPassword, asyncHandler, isValidEmail, isValidPassword } from '../utils/auth.js';
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ export const createUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
   if (!isValidEmail(email))
     return res.status(400).json({ message: 'Invalid email address' });
-  if (password.length < 8)
+  if (!isValidPassword(password))
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   if (!isValidRole(role))
     return res.status(400).json({ message: 'Role must be "user" or "admin"' });
@@ -164,7 +164,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   }
 
   if (password !== undefined) {
-    if (password.length < 8)
+    if (!isValidPassword(password))
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     const passwordHash = await hashPassword(password);
     setClauses.push('password_hash = ?');

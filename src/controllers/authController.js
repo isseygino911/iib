@@ -3,7 +3,8 @@ import {
   hashPassword, comparePassword,
   verifyRefreshToken,
   generateTokenPair, setCookieTokens,
-  asyncHandler, isValidEmail,
+  asyncHandler, isValidEmail, isValidPassword,
+  clearCookieTokens,
 } from '../utils/auth.js';
 
 // ── Controllers ──────────────────────────────────────────────
@@ -13,7 +14,7 @@ export const register = asyncHandler(async (req, res) => {
 
   if (!email || !password)
     return res.status(400).json({ message: 'Email and password are required' });
-  if (password.length < 8)
+  if (!isValidPassword(password))
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   if (!isValidEmail(email))
     return res.status(400).json({ message: 'Invalid email address' });
@@ -37,7 +38,10 @@ export const register = asyncHandler(async (req, res) => {
   await pool.query('UPDATE users SET refresh_token = ? WHERE id = ?', [refreshToken, userId]);
   setCookieTokens(res, accessToken, refreshToken);
 
-  return res.status(201).json({ message: 'Account created successfully', user: { id: userId, email, role: 'user' } });
+  return res.status(201).json({
+    message: 'Account created successfully',
+    user: { id: userId, name: cleanName, email, role: 'user' },
+  });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -47,7 +51,7 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
 
   const [rows] = await pool.query(
-    'SELECT id, email, password_hash, role FROM users WHERE email = ?',
+    'SELECT id, name, email, password_hash, role FROM users WHERE email = ?',
     [email]
   );
 
@@ -60,7 +64,10 @@ export const login = asyncHandler(async (req, res) => {
   await pool.query('UPDATE users SET refresh_token = ? WHERE id = ?', [refreshToken, user.id]);
   setCookieTokens(res, accessToken, refreshToken);
 
-  return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, role: user.role } });
+  return res.status(200).json({
+    message: 'Login successful',
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  });
 });
 
 export const logout = asyncHandler(async (req, res) => {
@@ -70,8 +77,7 @@ export const logout = asyncHandler(async (req, res) => {
     await pool.query('UPDATE users SET refresh_token = NULL WHERE refresh_token = ?', [token]);
   }
 
-  res.clearCookie('accessToken',  { httpOnly: true, sameSite: 'strict' });
-  res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict' });
+  clearCookieTokens(res);
   return res.status(200).json({ message: 'Logged out successfully' });
 });
 

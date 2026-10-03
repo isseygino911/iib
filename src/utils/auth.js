@@ -3,6 +3,11 @@ import jwt from 'jsonwebtoken';
 
 // ── Password ─────────────────────────────────────────────────
 
+// bcrypt throws on a non-string argument, so the type is checked before the
+// length gate rather than letting it surface as a 500.
+export const isValidPassword = (password) =>
+  typeof password === 'string' && password.length >= 8;
+
 export const hashPassword    = (password) => bcrypt.hash(password, 12);
 export const comparePassword = (password, hash) => bcrypt.compare(password, hash);
 
@@ -48,6 +53,16 @@ export function setCookieTokens(res, accessToken, refreshToken) {
   res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTS);
 }
 
+// A browser only deletes a cookie when httpOnly/secure/sameSite/path match the
+// ones it was set with. maxAge must be dropped, though — clearCookie derives
+// Expires from it, which would push the expiry into the future instead of the past.
+const clearOpts = ({ maxAge, ...rest }) => rest;
+
+export function clearCookieTokens(res) {
+  res.clearCookie('accessToken',  clearOpts(ACCESS_COOKIE_OPTS));
+  res.clearCookie('refreshToken', clearOpts(REFRESH_COOKIE_OPTS));
+}
+
 // ── Async handler ────────────────────────────────────────────
 
 export const asyncHandler = (fn) => (req, res, next) =>
@@ -56,4 +71,8 @@ export const asyncHandler = (fn) => (req, res, next) =>
 // ── Validators ───────────────────────────────────────────────
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const isValidEmail = (email) => EMAIL_RE.test(email);
+
+// 254 is the RFC 5321 maximum and fits the VARCHAR(255) email column, so an
+// over-long address is rejected here instead of failing as a MySQL 500.
+export const isValidEmail = (email) =>
+  typeof email === 'string' && email.length <= 254 && EMAIL_RE.test(email);

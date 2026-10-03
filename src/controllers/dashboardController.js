@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { hashPassword, comparePassword, asyncHandler, isValidEmail, ACCESS_COOKIE_OPTS, REFRESH_COOKIE_OPTS } from '../utils/auth.js';
+import { hashPassword, comparePassword, asyncHandler, isValidEmail, clearCookieTokens } from '../utils/auth.js';
 import { PROJECTS } from '../data/projects.js';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -206,8 +206,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   );
 
   // Clear tokens from cookies so the client must log in again with the new password
-  res.clearCookie('accessToken',  ACCESS_COOKIE_OPTS);
-  res.clearCookie('refreshToken', REFRESH_COOKIE_OPTS);
+  clearCookieTokens(res);
 
   return res.status(200).json({ message: 'Password changed successfully. Please log in again.' });
 });
